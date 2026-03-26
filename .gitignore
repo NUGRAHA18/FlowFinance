@@ -1,0 +1,7 @@
+docs.docx
+~$docs.docx
+
+node_modules
+.env
+dist
+build

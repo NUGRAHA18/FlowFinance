@@ -1,0 +1,114 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+// 2️⃣ Authentication & User
+model User {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  password      String
+  createdAt     DateTime       @default(now())
+  
+  // Relasi ke tabel lain
+  accounts      Account[]      // Ini menggantikan Wallet
+  categories    Category[]     // [DIPERBAIKI] Tambahan relasi kategori
+  transactions  Transaction[]
+  budgets       Budget[]
+  savingGoals   SavingGoal[]
+  debts         Debt[]
+  subscriptions Subscription[]
+}
+
+// 5️⃣ Account Management (Pengganti Wallet)
+model Account {
+  id           String        @id @default(uuid())
+  userId       String
+  name         String
+  type         String        // cash, bank, ewallet, investment
+  balance      Float         @default(0)
+  
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+// Kategori (Dibutuhkan untuk Transaksi & Budget)
+model Category {
+  id           String        @id @default(uuid())
+  userId       String        // Pastikan baris ini ada
+  name         String
+  type         String        // income, expense
+  
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+}
+
+// 4️⃣ Transaction Management
+model Transaction {
+  id          String    @id @default(uuid())
+  userId      String
+  accountId   String
+  categoryId  String
+  amount      Float
+  type        String    // income, expense, transfer
+  date        DateTime  @default(now())
+  description String?
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id])
+}
+
+// 6️⃣ Budget Management
+model Budget {
+  id          String   @id @default(uuid())
+  userId      String
+  categoryId  String
+  amount      Float
+  month       String   // Format: YYYY-MM
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id])
+}
+
+// 7️⃣ Saving Goals
+model SavingGoal {
+  id           String   @id @default(uuid())
+  userId       String
+  name         String
+  targetAmount Float
+  savedAmount  Float    @default(0)
+  deadline     DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 8️⃣ Debt / Loan Tracker
+model Debt {
+  id          String   @id @default(uuid())
+  userId      String
+  personName  String
+  amount      Float
+  dueDate     DateTime
+  status      String   // pending, paid
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 9️⃣ Subscription Tracker
+model Subscription {
+  id           String   @id @default(uuid())
+  userId       String
+  name         String
+  cost         Float
+  billingCycle String   // monthly, yearly
+  nextPayment  DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
