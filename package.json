@@ -1,0 +1,12 @@
+{
+  "name": "flowfinance",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "postinstall": "npm run install:backend",
+    "build": "cd backend && npx prisma generate && npx prisma migrate deploy",
+    "start": "cd backend && node src/server.js"
+  }
+}
