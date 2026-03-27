@@ -6,15 +6,18 @@ import {
   deleteWallet,
 } from "../controllers/wallet.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
+import {
+  validateCreateWallet,
+  validateUpdateWallet,
+} from "../middlewares/validate.middleware.js";
 
 const router = express.Router();
 
-// Pasang middleware di semua rute wallet
 router.use(authMiddleware);
 
-router.post("/", createWallet);
+router.post("/", validateCreateWallet, createWallet);
 router.get("/", getWallets);
-router.put("/:id", updateWallet);
+router.put("/:id", validateUpdateWallet, updateWallet);
 router.delete("/:id", deleteWallet);
 
 export default router;

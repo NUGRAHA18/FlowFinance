@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
+import { toast } from "../components/Toast";
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -18,9 +19,9 @@ export default function Login() {
       localStorage.setItem("token", res.data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Login gagal. Cek email dan password.",
-      );
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error || "Login gagal. Cek email dan password.";
+      setError(msg);
+      toast.error(msg);
     }
   };
 

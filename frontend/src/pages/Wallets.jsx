@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
+import { toast } from "../components/Toast";
 
 export default function Wallets() {
   const [wallets, setWallets] = useState([]);
@@ -15,7 +16,7 @@ export default function Wallets() {
       const res = await api.get("/wallets");
       setWallets(res.data);
     } catch (err) {
-      console.error("Gagal memuat dompet");
+      toast.error("Gagal memuat dompet");
     }
   };
 
@@ -32,10 +33,29 @@ export default function Wallets() {
       });
       setFormData({ name: "", type: "bank", balance: 0 });
       fetchWallets();
+      toast.success("Dompet berhasil ditambahkan");
     } catch (err) {
-      alert("Gagal menambah dompet");
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
+      toast.error(msg || "Gagal menambah dompet");
     }
   };
+
+  const handleDelete = async (wallet) => {
+    const confirmed = window.confirm(
+      `Hapus dompet "${wallet.name}"?\nSemua transaksi terkait juga akan terhapus.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/wallets/${wallet.id}`);
+      fetchWallets();
+      toast.success("Dompet berhasil dihapus");
+    } catch (err) {
+      toast.error("Gagal menghapus dompet");
+    }
+  };
+
+  const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20";
 
   return (
     <Layout>
@@ -63,7 +83,7 @@ export default function Wallets() {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
               placeholder="Misal: BCA Utama"
             />
           </div>
@@ -76,11 +96,12 @@ export default function Wallets() {
               onChange={(e) =>
                 setFormData({ ...formData, type: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
             >
               <option value="bank">Bank</option>
               <option value="ewallet">E-Wallet</option>
               <option value="cash">Tunai</option>
+              <option value="investment">Investasi</option>
             </select>
           </div>
           <div className="flex-1 min-w-[200px]">
@@ -94,7 +115,7 @@ export default function Wallets() {
               onChange={(e) =>
                 setFormData({ ...formData, balance: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
             />
           </div>
           <button
@@ -118,7 +139,6 @@ export default function Wallets() {
                 <span className="rounded-full bg-[#f0f4f1] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#628263]">
                   {wallet.type}
                 </span>
-                <span className="text-gray-400">💳</span>
               </div>
               <h4 className="mt-4 text-xl font-bold text-gray-800">
                 {wallet.name}
@@ -127,6 +147,12 @@ export default function Wallets() {
             <p className="mt-6 text-2xl font-bold text-gray-900">
               Rp {wallet.balance.toLocaleString("id-ID")}
             </p>
+            <button
+              onClick={() => handleDelete(wallet)}
+              className="mt-4 w-full rounded-xl border-2 border-red-100 bg-transparent py-2 text-sm font-bold text-red-500 hover:bg-red-50 transition"
+            >
+              Hapus Dompet
+            </button>
           </div>
         ))}
       </div>

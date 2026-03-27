@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
+import { toast } from "../components/Toast";
 
 export default function SavingGoals() {
   const [goals, setGoals] = useState([]);
@@ -16,7 +17,7 @@ export default function SavingGoals() {
       const res = await api.get("/saving-goals");
       setGoals(res.data);
     } catch (err) {
-      console.error("Gagal memuat target tabungan");
+      toast.error("Gagal memuat target tabungan");
     }
   };
 
@@ -33,8 +34,10 @@ export default function SavingGoals() {
       });
       setFormData({ name: "", targetAmount: "", deadline: "" });
       fetchGoals();
+      toast.success("Target tabungan berhasil dibuat");
     } catch (err) {
-      alert("Gagal membuat target tabungan");
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
+      toast.error(msg || "Gagal membuat target tabungan");
     }
   };
 
@@ -42,14 +45,15 @@ export default function SavingGoals() {
     e.preventDefault();
     const amountToSave = Number(addAmount[id]);
     if (!amountToSave || amountToSave <= 0)
-      return alert("Masukkan nominal yang valid");
+      return toast.error("Masukkan nominal yang valid");
 
     try {
       await api.put(`/saving-goals/${id}/add`, { amount: amountToSave });
       setAddAmount({ ...addAmount, [id]: "" });
       fetchGoals();
+      toast.success(`Berhasil menabung Rp ${amountToSave.toLocaleString("id-ID")}`);
     } catch (err) {
-      alert("Gagal menambah tabungan");
+      toast.error("Gagal menambah tabungan");
     }
   };
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
+import { toast } from "../components/Toast";
 
 export default function Subscriptions() {
   const [subscriptions, setSubscriptions] = useState([]);
@@ -16,7 +17,7 @@ export default function Subscriptions() {
       const res = await api.get("/subscriptions");
       setSubscriptions(res.data);
     } catch (err) {
-      console.error("Gagal memuat daftar langganan");
+      toast.error("Gagal memuat daftar langganan");
     }
   };
 
@@ -38,18 +39,24 @@ export default function Subscriptions() {
         nextPayment: "",
       });
       fetchSubscriptions();
+      toast.success("Langganan berhasil ditambahkan");
     } catch (err) {
-      alert("Gagal mencatat langganan");
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
+      toast.error(msg || "Gagal mencatat langganan");
     }
   };
 
-  const deleteSubscription = async (id) => {
-    if (!window.confirm("Berhenti berlangganan layanan ini?")) return;
+  const deleteSubscription = async (sub) => {
+    const confirmed = window.confirm(
+      `Hapus langganan "${sub.name}"?`
+    );
+    if (!confirmed) return;
     try {
-      await api.delete(`/subscriptions/${id}`);
+      await api.delete(`/subscriptions/${sub.id}`);
       fetchSubscriptions();
+      toast.success("Langganan berhasil dihapus");
     } catch (err) {
-      alert("Gagal menghapus langganan");
+      toast.error("Gagal menghapus langganan");
     }
   };
 
@@ -160,7 +167,7 @@ export default function Subscriptions() {
             </div>
 
             <button
-              onClick={() => deleteSubscription(sub.id)}
+              onClick={() => deleteSubscription(sub)}
               className="mt-6 w-full rounded-xl border-2 border-red-100 bg-transparent py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition"
             >
               Hapus Langganan

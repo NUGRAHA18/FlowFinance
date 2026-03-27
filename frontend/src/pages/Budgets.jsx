@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
+import { toast } from "../components/Toast";
 
 export default function Budgets() {
   const [budgets, setBudgets] = useState([]);
@@ -38,10 +39,41 @@ export default function Budgets() {
       });
       setFormData({ categoryId: "", amount: "", month: "" });
       fetchData();
+      toast.success("Anggaran berhasil dibuat");
     } catch (err) {
-      alert(err.response?.data?.error || "Gagal membuat anggaran");
+      toast.error(err.response?.data?.error || "Gagal membuat anggaran");
     }
   };
+
+  const handleDelete = async (budget) => {
+    const confirmed = window.confirm(
+      `Hapus anggaran "${budget.category?.name}" untuk bulan ${budget.month}?`
+    );
+    if (!confirmed) return;
+    try {
+      await api.delete(`/budgets/${budget.id}`);
+      fetchData();
+      toast.success("Anggaran berhasil dihapus");
+    } catch (err) {
+      toast.error("Gagal menghapus anggaran");
+    }
+  };
+
+  const getProgressColor = (percentage) => {
+    if (percentage >= 100) return "bg-red-500";
+    if (percentage >= 80) return "bg-amber-500";
+    return "bg-[#628263]";
+  };
+
+  const getStatusBadge = (percentage) => {
+    if (percentage >= 100)
+      return { text: "Melebihi!", bg: "bg-red-100 text-red-600" };
+    if (percentage >= 80)
+      return { text: "Hampir Habis", bg: "bg-amber-100 text-amber-600" };
+    return { text: "Aman", bg: "bg-green-100 text-green-600" };
+  };
+
+  const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20";
 
   return (
     <Layout>
@@ -68,7 +100,7 @@ export default function Budgets() {
               onChange={(e) =>
                 setFormData({ ...formData, categoryId: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
             >
               <option value="">Pilih Kategori...</option>
               {categories.map((c) => (
@@ -89,7 +121,7 @@ export default function Budgets() {
               onChange={(e) =>
                 setFormData({ ...formData, month: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
             />
           </div>
           <div className="flex-1 min-w-[200px]">
@@ -103,7 +135,7 @@ export default function Budgets() {
               onChange={(e) =>
                 setFormData({ ...formData, amount: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
               placeholder="0"
             />
           </div>
@@ -118,25 +150,71 @@ export default function Budgets() {
 
       {/* Daftar Anggaran */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {budgets.map((b) => (
-          <div
-            key={b.id}
-            className="rounded-3xl bg-white p-6 shadow-sm border-t-4 border-[#628263]"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h4 className="text-xl font-bold text-gray-800">
-                {b.category?.name}
-              </h4>
-              <span className="rounded-lg bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
-                {b.month}
-              </span>
+        {budgets.map((b) => {
+          const spent = b.spentAmount || 0;
+          const percentage = b.amount > 0 ? Math.round((spent / b.amount) * 100) : 0;
+          const remaining = b.amount - spent;
+          const status = getStatusBadge(percentage);
+
+          return (
+            <div
+              key={b.id}
+              className="rounded-3xl bg-white p-6 shadow-sm border-t-4 border-[#628263]"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h4 className="text-xl font-bold text-gray-800">
+                  {b.category?.name}
+                </h4>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
+                    {b.month}
+                  </span>
+                  <span className={`rounded-lg px-3 py-1 text-xs font-bold ${status.bg}`}>
+                    {status.text}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="my-4">
+                <div className="mb-2 flex justify-between text-sm">
+                  <span className="font-medium text-gray-600">
+                    Terpakai: Rp {spent.toLocaleString("id-ID")}
+                  </span>
+                  <span className="font-bold text-gray-800">{percentage}%</span>
+                </div>
+                <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className={`h-full transition-all duration-500 ${getProgressColor(percentage)}`}
+                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Batas Anggaran</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    Rp {b.amount.toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Sisa</p>
+                  <p className={`text-lg font-bold ${remaining < 0 ? "text-red-500" : "text-[#628263]"}`}>
+                    {remaining < 0 ? "-" : ""} Rp {Math.abs(remaining).toLocaleString("id-ID")}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleDelete(b)}
+                className="mt-4 w-full rounded-xl border-2 border-red-100 bg-transparent py-2 text-sm font-bold text-red-500 hover:bg-red-50 transition"
+              >
+                Hapus Anggaran
+              </button>
             </div>
-            <p className="text-sm text-gray-500">Batas Anggaran</p>
-            <p className="mt-1 text-3xl font-bold text-gray-900">
-              Rp {b.amount.toLocaleString("id-ID")}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Layout>
   );

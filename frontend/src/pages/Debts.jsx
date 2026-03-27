@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
+import { toast } from "../components/Toast";
 
 export default function Debts() {
   const [debts, setDebts] = useState([]);
@@ -15,7 +16,7 @@ export default function Debts() {
       const res = await api.get("/debts");
       setDebts(res.data);
     } catch (err) {
-      console.error("Gagal memuat daftar hutang");
+      toast.error("Gagal memuat daftar hutang");
     }
   };
 
@@ -32,17 +33,25 @@ export default function Debts() {
       });
       setFormData({ personName: "", amount: "", dueDate: "" });
       fetchDebts();
+      toast.success("Hutang berhasil dicatat");
     } catch (err) {
-      alert("Gagal mencatat hutang");
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
+      toast.error(msg || "Gagal mencatat hutang");
     }
   };
 
-  const markAsPaid = async (id) => {
+  const markAsPaid = async (debt) => {
+    const confirmed = window.confirm(
+      `Tandai hutang ke "${debt.personName}" sebagai lunas?`
+    );
+    if (!confirmed) return;
+
     try {
-      await api.put(`/debts/${id}/status`, { status: "paid" });
+      await api.put(`/debts/${debt.id}/status`, { status: "paid" });
       fetchDebts();
+      toast.success(`Hutang ke ${debt.personName} ditandai lunas`);
     } catch (err) {
-      alert("Gagal mengubah status hutang");
+      toast.error("Gagal mengubah status hutang");
     }
   };
 
@@ -152,7 +161,7 @@ export default function Debts() {
 
               {!isPaid && (
                 <button
-                  onClick={() => markAsPaid(debt.id)}
+                  onClick={() => markAsPaid(debt)}
                   className="mt-6 w-full rounded-xl bg-gray-800 py-3 text-sm font-bold text-white hover:bg-gray-900 transition"
                 >
                   Tandai Lunas

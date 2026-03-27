@@ -1,31 +1,61 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
+import { toast } from "../components/Toast";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [wallets, setWallets] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [editingId, setEditingId] = useState(null);
 
-  const [formData, setFormData] = useState({
+  // Filter state
+  const [filters, setFilters] = useState({
+    type: "",
+    categoryId: "",
+    accountId: "",
+    startDate: "",
+    endDate: "",
+  });
+
+  const emptyForm = {
     type: "expense",
     accountId: "",
     categoryId: "",
     amount: "",
     description: "",
-  });
+    toAccountId: "",
+  };
 
-  const fetchData = async () => {
+  const [formData, setFormData] = useState(emptyForm);
+
+  const fetchTransactions = async (page = 1) => {
     try {
-      const [txRes, walletRes, catRes] = await Promise.all([
-        api.get("/transactions"),
+      const params = new URLSearchParams({ page, limit: 10 });
+      if (filters.type) params.append("type", filters.type);
+      if (filters.categoryId) params.append("categoryId", filters.categoryId);
+      if (filters.accountId) params.append("accountId", filters.accountId);
+      if (filters.startDate) params.append("startDate", filters.startDate);
+      if (filters.endDate) params.append("endDate", filters.endDate);
+
+      const res = await api.get(`/transactions?${params}`);
+      setTransactions(res.data.data);
+      setPagination(res.data.pagination);
+    } catch (err) {
+      console.error("Gagal memuat transaksi", err);
+    }
+  };
+
+  const fetchMeta = async () => {
+    try {
+      const [walletRes, catRes] = await Promise.all([
         api.get("/wallets"),
         api.get("/categories"),
       ]);
-      setTransactions(txRes.data);
       setWallets(walletRes.data);
       setCategories(catRes.data);
-      if (walletRes.data.length > 0)
+      if (!formData.accountId && walletRes.data.length > 0)
         setFormData((prev) => ({ ...prev, accountId: walletRes.data[0].id }));
     } catch (err) {
       console.error("Gagal memuat data", err);
@@ -33,178 +63,401 @@ export default function Transactions() {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchMeta();
+    fetchTransactions();
   }, []);
 
+  useEffect(() => {
+    fetchTransactions(1);
+  }, [filters]);
+
+  const isTransfer = formData.type === "transfer";
   const filteredCategories = categories.filter((c) => c.type === formData.type);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.categoryId) return alert("Pilih kategori terlebih dahulu!");
+    if (!isTransfer && !formData.categoryId) return toast.error("Pilih kategori terlebih dahulu!");
+    if (isTransfer && !formData.toAccountId) return toast.error("Pilih dompet tujuan!");
     try {
-      await api.post("/transactions", {
-        ...formData,
+      const payload = {
+        accountId: formData.accountId,
         amount: Number(formData.amount),
-      });
-      setFormData({ ...formData, amount: "", description: "", categoryId: "" });
-      fetchData();
+        type: formData.type,
+      };
+
+      if (isTransfer) {
+        payload.toAccountId = formData.toAccountId;
+        payload.description = formData.description || "Transfer antar dompet";
+      } else {
+        payload.categoryId = formData.categoryId;
+        payload.description = formData.description;
+      }
+
+      if (editingId) {
+        await api.put(`/transactions/${editingId}`, payload);
+        setEditingId(null);
+      } else {
+        await api.post("/transactions", payload);
+      }
+
+      toast.success(editingId ? "Transaksi berhasil diubah" : "Transaksi berhasil dicatat");
+      setFormData({ ...emptyForm, accountId: formData.accountId });
+      fetchTransactions(pagination.page);
+      fetchMeta(); // refresh saldo
     } catch (err) {
-      alert("Gagal mencatat transaksi");
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
+      toast.error(msg || (editingId ? "Gagal mengubah transaksi" : "Gagal mencatat transaksi"));
     }
   };
+
+  const handleEdit = (tx) => {
+    setEditingId(tx.id);
+    setFormData({
+      type: tx.type === "transfer" ? "transfer" : tx.type,
+      accountId: tx.accountId,
+      categoryId: tx.categoryId || "",
+      amount: tx.amount,
+      description: tx.description || "",
+      toAccountId: "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({ ...emptyForm, accountId: wallets[0]?.id || "" });
+  };
+
+  const handleDelete = async (tx) => {
+    const confirmed = window.confirm(
+      `Hapus transaksi "${tx.description}"?\nSaldo dompet akan dikembalikan seperti semula.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/transactions/${tx.id}`);
+      fetchTransactions(pagination.page);
+      fetchMeta();
+      toast.success("Transaksi berhasil dihapus");
+    } catch (err) {
+      toast.error("Gagal menghapus transaksi");
+    }
+  };
+
+  const resetFilters = () => {
+    setFilters({ type: "", categoryId: "", accountId: "", startDate: "", endDate: "" });
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const res = await api.get("/export/transactions", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "transaksi-flowfinance.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Data transaksi berhasil diexport");
+    } catch (err) {
+      toast.error("Gagal mengexport data");
+    }
+  };
+
+  const getTypeIcon = (type) => {
+    if (type === "income") return { icon: "↓", bg: "bg-green-100 text-green-600" };
+    if (type === "transfer") return { icon: "⇄", bg: "bg-blue-100 text-blue-600" };
+    return { icon: "↑", bg: "bg-red-100 text-red-600" };
+  };
+
+  const getTypeColor = (type) => {
+    if (type === "income") return "text-[#628263]";
+    if (type === "transfer") return "text-blue-600";
+    return "text-gray-900";
+  };
+
+  const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20";
 
   return (
     <Layout>
       <div className="mb-8 flex items-center justify-between">
         <h2 className="text-3xl font-bold text-gray-900">Transaksi Saya</h2>
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export CSV
+        </button>
       </div>
 
-      {/* Form Tambah Transaksi */}
+      {/* Form Tambah/Edit Transaksi */}
       <div className="mb-10 rounded-3xl bg-white p-8 shadow-sm">
-        <h3 className="mb-6 text-xl font-bold text-gray-800">
-          Catat Transaksi Baru
-        </h3>
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-gray-800">
+            {editingId ? "Edit Transaksi" : "Catat Transaksi Baru"}
+          </h3>
+          {editingId && (
+            <button
+              onClick={handleCancelEdit}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
+            >
+              Batal Edit
+            </button>
+          )}
+        </div>
         <form
           onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Tipe
-            </label>
+            <label className="mb-2 block text-sm font-medium text-gray-600">Tipe</label>
             <select
               value={formData.type}
               onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  type: e.target.value,
-                  categoryId: "",
-                })
+                setFormData({ ...formData, type: e.target.value, categoryId: "", toAccountId: "" })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
             >
               <option value="expense">Pengeluaran</option>
               <option value="income">Pemasukan</option>
+              <option value="transfer">Transfer</option>
             </select>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-600">
-              Dompet
+              {isTransfer ? "Dompet Asal" : "Dompet"}
             </label>
             <select
               required
               value={formData.accountId}
-              onChange={(e) =>
-                setFormData({ ...formData, accountId: e.target.value })
-              }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+              className={inputClass}
             >
               <option value="">Pilih Dompet...</option>
               {wallets.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
+                <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
           </div>
+
+          {isTransfer ? (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-600">Dompet Tujuan</label>
+              <select
+                required
+                value={formData.toAccountId}
+                onChange={(e) => setFormData({ ...formData, toAccountId: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">Pilih Tujuan...</option>
+                {wallets
+                  .filter((w) => w.id !== formData.accountId)
+                  .map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-600">Kategori</label>
+              <select
+                required
+                value={formData.categoryId}
+                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">Pilih Kategori...</option>
+                {filteredCategories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Kategori
-            </label>
-            <select
-              required
-              value={formData.categoryId}
-              onChange={(e) =>
-                setFormData({ ...formData, categoryId: e.target.value })
-              }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
-            >
-              <option value="">Pilih Kategori...</option>
-              {filteredCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Nominal (Rp)
-            </label>
+            <label className="mb-2 block text-sm font-medium text-gray-600">Nominal (Rp)</label>
             <input
               type="number"
               required
               value={formData.amount}
-              onChange={(e) =>
-                setFormData({ ...formData, amount: e.target.value })
-              }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              className={inputClass}
               placeholder="0"
             />
           </div>
-          <div className="lg:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Keterangan
-            </label>
+          <div className={isTransfer ? "" : "lg:col-span-2"}>
+            <label className="mb-2 block text-sm font-medium text-gray-600">Keterangan</label>
             <input
               type="text"
-              required
+              required={!isTransfer}
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
-              placeholder="Misal: Beli makan siang"
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className={inputClass}
+              placeholder={isTransfer ? "Opsional" : "Misal: Beli makan siang"}
             />
           </div>
           <div className="flex items-end lg:col-span-3">
             <button
               type="submit"
-              className="w-full rounded-xl bg-[#628263] py-4 font-bold text-white transition hover:bg-[#4d684e] shadow-md"
+              className={`w-full rounded-xl py-4 font-bold text-white transition shadow-md ${
+                editingId
+                  ? "bg-amber-500 hover:bg-amber-600"
+                  : isTransfer
+                    ? "bg-blue-500 hover:bg-blue-600"
+                    : "bg-[#628263] hover:bg-[#4d684e]"
+              }`}
             >
-              Simpan Transaksi
+              {editingId ? "Simpan Perubahan" : isTransfer ? "Transfer Sekarang" : "Simpan Transaksi"}
             </button>
           </div>
         </form>
       </div>
 
+      {/* Filter */}
+      <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-800">Filter</h3>
+          <button
+            onClick={resetFilters}
+            className="text-sm font-medium text-gray-500 hover:text-gray-700"
+          >
+            Reset Filter
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <select
+            value={filters.type}
+            onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+          >
+            <option value="">Semua Tipe</option>
+            <option value="income">Pemasukan</option>
+            <option value="expense">Pengeluaran</option>
+            <option value="transfer">Transfer</option>
+          </select>
+          <select
+            value={filters.accountId}
+            onChange={(e) => setFilters({ ...filters, accountId: e.target.value })}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+          >
+            <option value="">Semua Dompet</option>
+            {wallets.map((w) => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
+          </select>
+          <select
+            value={filters.categoryId}
+            onChange={(e) => setFilters({ ...filters, categoryId: e.target.value })}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+          >
+            <option value="">Semua Kategori</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={filters.startDate}
+            onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+            placeholder="Dari tanggal"
+          />
+          <input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+            placeholder="Sampai tanggal"
+          />
+        </div>
+      </div>
+
       {/* Daftar Transaksi */}
       <div className="rounded-3xl bg-white p-8 shadow-sm">
-        <h3 className="mb-6 text-xl font-bold text-gray-800">
-          Riwayat Transaksi
-        </h3>
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-gray-800">Riwayat Transaksi</h3>
+          <span className="text-sm text-gray-500">{pagination.total} transaksi</span>
+        </div>
         {transactions.length === 0 ? (
           <p className="text-gray-500">Belum ada transaksi.</p>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {transactions.map((tx) => (
-              <li
-                key={tx.id}
-                className="flex flex-col gap-2 rounded-2xl bg-gray-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-full ${tx.type === "income" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}
+          <>
+            <ul className="flex flex-col gap-4">
+              {transactions.map((tx) => {
+                const { icon, bg } = getTypeIcon(tx.type);
+                return (
+                  <li
+                    key={tx.id}
+                    className="flex flex-col gap-3 rounded-2xl bg-gray-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
                   >
-                    {tx.type === "income" ? "↓" : "↑"}
-                  </div>
-                  <div>
-                    <p className="font-bold text-gray-900">{tx.description}</p>
-                    <p className="text-sm text-gray-500">
-                      {tx.account?.name} • {tx.category?.name} •{" "}
-                      {new Date(tx.date).toLocaleDateString("id-ID")}
-                    </p>
-                  </div>
-                </div>
-                <p
-                  className={`text-xl font-bold ${tx.type === "income" ? "text-[#628263]" : "text-gray-900"}`}
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${bg}`}>
+                        {icon}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900">{tx.description}</p>
+                        <p className="text-sm text-gray-500">
+                          {tx.account?.name}
+                          {tx.category?.name && ` • ${tx.category.name}`}
+                          {" • "}
+                          {new Date(tx.date).toLocaleDateString("id-ID")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <p className={`text-xl font-bold ${getTypeColor(tx.type)}`}>
+                        {tx.type === "income" ? "+" : tx.type === "transfer" ? "" : "-"} Rp{" "}
+                        {tx.amount.toLocaleString("id-ID")}
+                      </p>
+                      <div className="flex gap-2">
+                        {tx.type !== "transfer" && (
+                          <button
+                            onClick={() => handleEdit(tx)}
+                            className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-100"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(tx)}
+                          className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-center gap-2">
+                <button
+                  disabled={pagination.page <= 1}
+                  onClick={() => fetchTransactions(pagination.page - 1)}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {tx.type === "income" ? "+" : "-"} Rp{" "}
-                  {tx.amount.toLocaleString("id-ID")}
-                </p>
-              </li>
-            ))}
-          </ul>
+                  Sebelumnya
+                </button>
+                <span className="px-4 py-2 text-sm text-gray-600">
+                  {pagination.page} / {pagination.totalPages}
+                </span>
+                <button
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => fetchTransactions(pagination.page + 1)}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Berikutnya
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>

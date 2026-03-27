@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
+import { toast } from "../components/Toast";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -19,10 +20,12 @@ export default function Register() {
     setError("");
     try {
       await api.post("/auth/register", formData);
-      alert("Registrasi berhasil! Silakan login.");
+      toast.success("Registrasi berhasil! Silakan login.");
       navigate("/login");
     } catch (err) {
-      setError(err.response?.data?.error || "Terjadi kesalahan saat mendaftar");
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error || "Terjadi kesalahan saat mendaftar";
+      setError(msg);
+      toast.error(msg);
     }
   };
 

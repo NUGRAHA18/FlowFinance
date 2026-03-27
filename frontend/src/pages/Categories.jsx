@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
+import { toast } from "../components/Toast";
 
 export default function Categories() {
   const [categories, setCategories] = useState([]);
@@ -11,7 +12,7 @@ export default function Categories() {
       const res = await api.get("/categories");
       setCategories(res.data);
     } catch (err) {
-      console.error("Gagal memuat kategori");
+      toast.error("Gagal memuat kategori");
     }
   };
 
@@ -25,23 +26,31 @@ export default function Categories() {
       await api.post("/categories", formData);
       setFormData({ name: "", type: "expense" });
       fetchCategories();
+      toast.success("Kategori berhasil ditambahkan");
     } catch (err) {
-      alert("Gagal menambah kategori");
+      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
+      toast.error(msg || "Gagal menambah kategori");
     }
   };
 
-  const deleteCategory = async (id) => {
-    if (!window.confirm("Hapus kategori ini?")) return;
+  const deleteCategory = async (cat) => {
+    const confirmed = window.confirm(
+      `Hapus kategori "${cat.name}"?\nTransaksi dan budget terkait mungkin terpengaruh.`
+    );
+    if (!confirmed) return;
     try {
-      await api.delete(`/categories/${id}`);
+      await api.delete(`/categories/${cat.id}`);
       fetchCategories();
+      toast.success("Kategori berhasil dihapus");
     } catch (err) {
-      alert("Gagal menghapus kategori");
+      toast.error("Gagal menghapus kategori");
     }
   };
 
   const incomes = categories.filter((c) => c.type === "income");
   const expenses = categories.filter((c) => c.type === "expense");
+
+  const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20";
 
   return (
     <Layout>
@@ -69,7 +78,7 @@ export default function Categories() {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
               placeholder="Misal: Makan Siang"
             />
           </div>
@@ -82,7 +91,7 @@ export default function Categories() {
               onChange={(e) =>
                 setFormData({ ...formData, type: e.target.value })
               }
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20"
+              className={inputClass}
             >
               <option value="expense">Pengeluaran (Expense)</option>
               <option value="income">Pemasukan (Income)</option>
@@ -107,22 +116,26 @@ export default function Categories() {
             </span>
             <h3 className="text-xl font-bold text-gray-800">Pemasukan</h3>
           </div>
-          <ul className="flex flex-col gap-3">
-            {incomes.map((cat) => (
-              <li
-                key={cat.id}
-                className="flex items-center justify-between rounded-xl bg-gray-50 p-4 transition hover:bg-gray-100"
-              >
-                <span className="font-medium text-gray-800">{cat.name}</span>
-                <button
-                  onClick={() => deleteCategory(cat.id)}
-                  className="text-sm font-bold text-red-500 hover:text-red-700"
+          {incomes.length === 0 ? (
+            <p className="text-sm text-gray-400">Belum ada kategori pemasukan.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {incomes.map((cat) => (
+                <li
+                  key={cat.id}
+                  className="flex items-center justify-between rounded-xl bg-gray-50 p-4 transition hover:bg-gray-100"
                 >
-                  Hapus
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <span className="font-medium text-gray-800">{cat.name}</span>
+                  <button
+                    onClick={() => deleteCategory(cat)}
+                    className="text-sm font-bold text-red-500 hover:text-red-700"
+                  >
+                    Hapus
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Kolom Pengeluaran */}
@@ -133,22 +146,26 @@ export default function Categories() {
             </span>
             <h3 className="text-xl font-bold text-gray-800">Pengeluaran</h3>
           </div>
-          <ul className="flex flex-col gap-3">
-            {expenses.map((cat) => (
-              <li
-                key={cat.id}
-                className="flex items-center justify-between rounded-xl bg-gray-50 p-4 transition hover:bg-gray-100"
-              >
-                <span className="font-medium text-gray-800">{cat.name}</span>
-                <button
-                  onClick={() => deleteCategory(cat.id)}
-                  className="text-sm font-bold text-red-500 hover:text-red-700"
+          {expenses.length === 0 ? (
+            <p className="text-sm text-gray-400">Belum ada kategori pengeluaran.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {expenses.map((cat) => (
+                <li
+                  key={cat.id}
+                  className="flex items-center justify-between rounded-xl bg-gray-50 p-4 transition hover:bg-gray-100"
                 >
-                  Hapus
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <span className="font-medium text-gray-800">{cat.name}</span>
+                  <button
+                    onClick={() => deleteCategory(cat)}
+                    className="text-sm font-bold text-red-500 hover:text-red-700"
+                  >
+                    Hapus
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </Layout>

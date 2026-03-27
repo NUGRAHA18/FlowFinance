@@ -10,6 +10,9 @@ import savingGoalRoutes from "./routes/savingGoal.routes.js";
 import debtRoutes from "./routes/debt.routes.js";
 import subscriptionRoutes from "./routes/subscription.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
+import exportRoutes from "./routes/export.routes.js";
+import profileRoutes from "./routes/profile.routes.js";
 import prisma from "./config/prisma.js";
 
 dotenv.config();
@@ -29,6 +32,9 @@ app.use("/api/saving-goals", savingGoalRoutes);
 app.use("/api/debts", debtRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/export", exportRoutes);
+app.use("/api/profile", profileRoutes);
 
 app.get("/", (req, res) => {
   res.json({
