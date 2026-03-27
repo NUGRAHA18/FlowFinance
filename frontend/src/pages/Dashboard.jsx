@@ -12,7 +12,9 @@ import {
   Wallet,
   DollarSign,
   AlertTriangle,
+  FileDown,
 } from "lucide-react";
+import { generateMonthlyReport } from "../utils/generateReport";
 import {
   BarChart,
   Bar,
@@ -89,15 +91,26 @@ export default function Dashboard() {
             Pantau arus kas dan targetmu di sini.
           </p>
         </div>
-        <select
-          value={timeFilter}
-          onChange={(e) => setTimeFilter(e.target.value)}
-          className="rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm outline-none transition focus:border-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-        >
-          <option value="this_month">Bulan Ini</option>
-          <option value="last_month">Bulan Lalu</option>
-          <option value="this_year">Tahun Ini</option>
-        </select>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              const periodMap = { this_month: "Bulan Ini", last_month: "Bulan Lalu", this_year: "Tahun Ini" };
+              generateMonthlyReport(data, periodMap[timeFilter]);
+            }}
+            className="flex items-center gap-2 rounded-xl bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            <FileDown className="h-4 w-4" /> PDF
+          </button>
+          <select
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value)}
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm outline-none transition focus:border-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+          >
+            <option value="this_month">Bulan Ini</option>
+            <option value="last_month">Bulan Lalu</option>
+            <option value="this_year">Tahun Ini</option>
+          </select>
+        </div>
       </div>
 
       {/* Baris 1: Kartu Utama (Balance, Income, Expense, Net) */}

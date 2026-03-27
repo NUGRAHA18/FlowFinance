@@ -13,7 +13,7 @@ export const createDebt = async ({
       personName,
       amount,
       dueDate: new Date(dueDate),
-      status: status || "pending", // Default status adalah pending
+      status: status || "pending",
     },
   });
 };
@@ -21,7 +21,66 @@ export const createDebt = async ({
 export const getUserDebts = async (userId) => {
   return await prisma.debt.findMany({
     where: { userId },
-    orderBy: { dueDate: "asc" }, // Urutkan dari yang paling dekat jatuh tempo
+    include: {
+      payments: {
+        orderBy: { paidAt: "desc" },
+      },
+    },
+    orderBy: { dueDate: "asc" },
+  });
+};
+
+// Bayar hutang (partial / full) — otomatis buat transaksi expense
+export const payDebt = async ({ debtId, userId, amount, accountId, note }) => {
+  return await prisma.$transaction(async (tx) => {
+    const debt = await tx.debt.findFirst({
+      where: { id: debtId, userId },
+    });
+    if (!debt) throw new Error("Hutang tidak ditemukan");
+    if (debt.status === "paid") throw new Error("Hutang sudah lunas");
+
+    const remaining = debt.amount - debt.paidAmount;
+    if (amount > remaining) throw new Error(`Maksimal pembayaran Rp ${remaining.toLocaleString("id-ID")}`);
+
+    // Cek saldo dompet
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId },
+    });
+    if (!account) throw new Error("Dompet tidak ditemukan");
+    if (account.balance < amount) throw new Error("Saldo dompet tidak mencukupi");
+
+    // 1. Kurangi saldo dompet
+    await tx.account.update({
+      where: { id: accountId },
+      data: { balance: { decrement: amount } },
+    });
+
+    // 2. Catat pembayaran
+    await tx.debtPayment.create({
+      data: { debtId, amount, note },
+    });
+
+    // 3. Update paidAmount + status
+    const newPaidAmount = debt.paidAmount + amount;
+    const newStatus = newPaidAmount >= debt.amount ? "paid" : "partial";
+
+    const updated = await tx.debt.update({
+      where: { id: debtId },
+      data: { paidAmount: newPaidAmount, status: newStatus },
+    });
+
+    // 4. Buat transaksi expense otomatis
+    await tx.transaction.create({
+      data: {
+        userId,
+        accountId,
+        amount,
+        type: "expense",
+        description: `Bayar hutang: ${debt.personName}${note ? ` - ${note}` : ""}`,
+      },
+    });
+
+    return updated;
   });
 };
 

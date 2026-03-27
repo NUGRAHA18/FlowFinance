@@ -23,26 +23,40 @@ export const getUserBudgets = async (userId) => {
     orderBy: { month: "desc" },
   });
 
-  // Hitung pengeluaran aktual untuk setiap budget
+  // Hitung pengeluaran aktual + ambil detail transaksi terkait untuk setiap budget
   const budgetsWithSpent = await Promise.all(
     budgets.map(async (budget) => {
       const [year, monthNum] = budget.month.split("-").map(Number);
       const startOfMonth = new Date(year, monthNum - 1, 1);
       const endOfMonth = new Date(year, monthNum, 0, 23, 59, 59, 999);
 
-      const spent = await prisma.transaction.aggregate({
+      // Query: semua transaksi expense dengan kategori ini di bulan ini
+      const relatedTransactions = await prisma.transaction.findMany({
         where: {
           userId,
           categoryId: budget.categoryId,
           type: "expense",
           date: { gte: startOfMonth, lte: endOfMonth },
         },
-        _sum: { amount: true },
+        orderBy: { date: "desc" },
+        select: {
+          id: true,
+          amount: true,
+          description: true,
+          date: true,
+          account: { select: { name: true } },
+        },
       });
+
+      const spentAmount = relatedTransactions.reduce(
+        (sum, tx) => sum + tx.amount,
+        0
+      );
 
       return {
         ...budget,
-        spentAmount: spent._sum.amount || 0,
+        spentAmount,
+        transactions: relatedTransactions,
       };
     })
   );

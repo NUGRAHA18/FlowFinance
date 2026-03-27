@@ -26,9 +26,9 @@ export const createTransaction = async ({
         data: { balance: { increment: amount } },
       });
 
-      // Catat 1 record transfer
+      // Catat 1 record transfer (tanpa categoryId)
       const transaction = await tx.transaction.create({
-        data: { userId, accountId, categoryId, amount, type, description: description || `Transfer ke akun lain` },
+        data: { userId, accountId, amount, type, description: description || `Transfer ke akun lain` },
       });
 
       return transaction;

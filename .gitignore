@@ -1,7 +1,28 @@
 docs.docx
 ~$docs.docx
 
+# Dependencies
 node_modules
+
+# Environment
 .env
+.env.local
+.env.production
+
+# Build output
 dist
 build
+
+# Docker
+pgdata
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

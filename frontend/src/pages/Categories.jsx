@@ -47,7 +47,7 @@ export default function Categories() {
 
   const deleteCategory = async (cat) => {
     const confirmed = window.confirm(
-      `Hapus kategori "${cat.name}"?\nTransaksi dan budget terkait mungkin terpengaruh.`
+      `Hapus kategori "${cat.name}"?\nTransaksi dan budget terkait mungkin terpengaruh.`,
     );
     if (!confirmed) return;
     try {
@@ -94,7 +94,7 @@ export default function Categories() {
                 setFormData({ ...formData, name: e.target.value })
               }
               className={inputClass}
-              placeholder="Misal: Makan Siang"
+              placeholder="Misal: Makan"
             />
           </div>
           <div className="flex-1 min-w-[200px]">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Target, Trash2, AlertTriangle } from "lucide-react";
+import { Target, Trash2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
 import { toast } from "../components/Toast";
@@ -12,6 +12,7 @@ export default function Budgets() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [expandedBudget, setExpandedBudget] = useState(null);
 
   const [formData, setFormData] = useState({
     categoryId: "",
@@ -232,9 +233,53 @@ export default function Budgets() {
                   </div>
                 </div>
 
+                {/* Toggle Detail Transaksi */}
+                <button
+                  onClick={() => setExpandedBudget(expandedBudget === b.id ? null : b.id)}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+                >
+                  {expandedBudget === b.id ? (
+                    <><ChevronUp className="h-4 w-4" /> Sembunyikan Detail</>
+                  ) : (
+                    <><ChevronDown className="h-4 w-4" /> Lihat {b.transactions?.length || 0} Transaksi</>
+                  )}
+                </button>
+
+                {/* Detail Transaksi */}
+                {expandedBudget === b.id && (
+                  <div className="mt-3 rounded-xl bg-gray-50 dark:bg-gray-700 p-4 animate-fade-in">
+                    {(!b.transactions || b.transactions.length === 0) ? (
+                      <p className="text-center text-sm text-gray-400 dark:text-gray-500 py-2">
+                        Belum ada transaksi untuk anggaran ini.
+                      </p>
+                    ) : (
+                      <ul className="flex flex-col gap-2">
+                        {b.transactions.map((tx) => (
+                          <li
+                            key={tx.id}
+                            className="flex items-center justify-between rounded-lg bg-white dark:bg-gray-800 px-3 py-2.5"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                {tx.description || "Tanpa keterangan"}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {tx.account?.name} &bull; {new Date(tx.date).toLocaleDateString("id-ID")}
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-red-500">
+                              -Rp {tx.amount.toLocaleString("id-ID")}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={() => handleDelete(b)}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-100 dark:border-red-900/30 bg-transparent py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-100 dark:border-red-900/30 bg-transparent py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                 >
                   <Trash2 className="h-4 w-4" />
                   Hapus Anggaran

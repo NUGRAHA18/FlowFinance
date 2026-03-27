@@ -25,10 +25,28 @@ export const getDebts = async (req, res) => {
   }
 };
 
+export const payDebt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, accountId, note } = req.body;
+
+    const debt = await DebtService.payDebt({
+      debtId: id,
+      userId: req.userId,
+      amount,
+      accountId,
+      note,
+    });
+    res.status(200).json({ message: "Pembayaran berhasil", debt });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 export const updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // "pending" atau "paid"
+    const { status } = req.body;
 
     const debt = await DebtService.updateDebtStatus({
       debtId: id,

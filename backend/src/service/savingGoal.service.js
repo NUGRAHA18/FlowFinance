@@ -11,7 +11,7 @@ export const createSavingGoal = async ({
       userId,
       name,
       targetAmount,
-      deadline: new Date(deadline), // Mengubah string tanggal menjadi format Date
+      deadline: new Date(deadline),
     },
   });
 };
@@ -19,20 +19,67 @@ export const createSavingGoal = async ({
 export const getSavingGoals = async (userId) => {
   return await prisma.savingGoal.findMany({
     where: { userId },
-    orderBy: { deadline: "asc" }, // Urutkan dari deadline terdekat
+    orderBy: { deadline: "asc" },
   });
 };
 
-export const addSavingAmount = async ({ goalId, userId, amount }) => {
-  // Pastikan celengannya ada dan milik user tersebut
-  const goal = await prisma.savingGoal.findFirst({
-    where: { id: goalId, userId },
+// Menabung: kurangi saldo dompet, tambah savedAmount (atomic)
+export const addSavingAmount = async ({ goalId, userId, amount, accountId }) => {
+  return await prisma.$transaction(async (tx) => {
+    const goal = await tx.savingGoal.findFirst({
+      where: { id: goalId, userId },
+    });
+    if (!goal) throw new Error("Saving goal not found");
+
+    // Cek saldo dompet cukup
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId },
+    });
+    if (!account) throw new Error("Dompet tidak ditemukan");
+    if (account.balance < amount) throw new Error("Saldo dompet tidak mencukupi");
+
+    // Kurangi saldo dompet
+    await tx.account.update({
+      where: { id: accountId },
+      data: { balance: { decrement: amount } },
+    });
+
+    // Tambah savedAmount
+    const updated = await tx.savingGoal.update({
+      where: { id: goalId },
+      data: { savedAmount: { increment: amount } },
+    });
+
+    return updated;
   });
+};
 
-  if (!goal) throw new Error("Saving goal not found");
+// Tarik dari tabungan: tambah saldo dompet, kurangi savedAmount (atomic)
+export const withdrawSavingAmount = async ({ goalId, userId, amount, accountId }) => {
+  return await prisma.$transaction(async (tx) => {
+    const goal = await tx.savingGoal.findFirst({
+      where: { id: goalId, userId },
+    });
+    if (!goal) throw new Error("Saving goal not found");
+    if (goal.savedAmount < amount) throw new Error("Saldo tabungan tidak mencukupi");
 
-  return await prisma.savingGoal.update({
-    where: { id: goalId },
-    data: { savedAmount: { increment: amount } }, // Tambah isi celengan
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId },
+    });
+    if (!account) throw new Error("Dompet tidak ditemukan");
+
+    // Tambah saldo dompet
+    await tx.account.update({
+      where: { id: accountId },
+      data: { balance: { increment: amount } },
+    });
+
+    // Kurangi savedAmount
+    const updated = await tx.savingGoal.update({
+      where: { id: goalId },
+      data: { savedAmount: { decrement: amount } },
+    });
+
+    return updated;
   });
 };

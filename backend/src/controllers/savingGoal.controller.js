@@ -27,14 +27,32 @@ export const getGoals = async (req, res) => {
 export const addAmount = async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount } = req.body;
+    const { amount, accountId } = req.body;
 
     const goal = await SavingGoalService.addSavingAmount({
       goalId: id,
       userId: req.userId,
       amount,
+      accountId,
     });
-    res.status(200).json({ message: "Saved amount updated", goal });
+    res.status(200).json({ message: "Berhasil menabung", goal });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const withdrawAmount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, accountId } = req.body;
+
+    const goal = await SavingGoalService.withdrawSavingAmount({
+      goalId: id,
+      userId: req.userId,
+      amount,
+      accountId,
+    });
+    res.status(200).json({ message: "Berhasil menarik tabungan", goal });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

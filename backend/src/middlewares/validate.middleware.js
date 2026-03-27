@@ -159,11 +159,13 @@ export const validateCreateSavingGoal = (req, res, next) => {
 };
 
 export const validateAddSavingAmount = (req, res, next) => {
-  const { amount } = req.body;
+  const { amount, accountId } = req.body;
   const errors = [];
 
   if (!amount || typeof amount !== "number" || amount <= 0)
     errors.push("Jumlah tabungan harus lebih dari 0");
+  if (!accountId || !isValidUUID(accountId))
+    errors.push("Pilih dompet sumber");
 
   return errors.length ? fail(res, errors) : next();
 };

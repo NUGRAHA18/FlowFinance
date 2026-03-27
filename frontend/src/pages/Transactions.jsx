@@ -16,7 +16,11 @@ import {
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    totalPages: 1,
+    total: 0,
+  });
   const [wallets, setWallets] = useState([]);
   const [categories, setCategories] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -50,11 +54,16 @@ export default function Transactions() {
     try {
       const params = new URLSearchParams({ page, limit: 10 });
       if (debouncedFilters.type) params.append("type", debouncedFilters.type);
-      if (debouncedFilters.categoryId) params.append("categoryId", debouncedFilters.categoryId);
-      if (debouncedFilters.accountId) params.append("accountId", debouncedFilters.accountId);
-      if (debouncedFilters.startDate) params.append("startDate", debouncedFilters.startDate);
-      if (debouncedFilters.endDate) params.append("endDate", debouncedFilters.endDate);
-      if (debouncedFilters.search) params.append("search", debouncedFilters.search);
+      if (debouncedFilters.categoryId)
+        params.append("categoryId", debouncedFilters.categoryId);
+      if (debouncedFilters.accountId)
+        params.append("accountId", debouncedFilters.accountId);
+      if (debouncedFilters.startDate)
+        params.append("startDate", debouncedFilters.startDate);
+      if (debouncedFilters.endDate)
+        params.append("endDate", debouncedFilters.endDate);
+      if (debouncedFilters.search)
+        params.append("search", debouncedFilters.search);
 
       const res = await api.get(`/transactions?${params}`);
       setTransactions(res.data.data);
@@ -95,8 +104,10 @@ export default function Transactions() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isTransfer && !formData.categoryId) return toast.error("Pilih kategori terlebih dahulu!");
-    if (isTransfer && !formData.toAccountId) return toast.error("Pilih dompet tujuan!");
+    if (!isTransfer && !formData.categoryId)
+      return toast.error("Pilih kategori terlebih dahulu!");
+    if (isTransfer && !formData.toAccountId)
+      return toast.error("Pilih dompet tujuan!");
     setLoading(true);
     try {
       const payload = {
@@ -120,13 +131,19 @@ export default function Transactions() {
         await api.post("/transactions", payload);
       }
 
-      toast.success(editingId ? "Transaksi berhasil diubah" : "Transaksi berhasil dicatat");
+      toast.success(
+        editingId ? "Transaksi berhasil diubah" : "Transaksi berhasil dicatat",
+      );
       setFormData({ ...emptyForm, accountId: formData.accountId });
       fetchTransactions(pagination.page);
       fetchMeta(); // refresh saldo
     } catch (err) {
-      const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
-      toast.error(msg || (editingId ? "Gagal mengubah transaksi" : "Gagal mencatat transaksi"));
+      const msg =
+        err.response?.data?.details?.join(", ") || err.response?.data?.error;
+      toast.error(
+        msg ||
+          (editingId ? "Gagal mengubah transaksi" : "Gagal mencatat transaksi"),
+      );
     } finally {
       setLoading(false);
     }
@@ -152,7 +169,7 @@ export default function Transactions() {
 
   const handleDelete = async (tx) => {
     const confirmed = window.confirm(
-      `Hapus transaksi "${tx.description}"?\nSaldo dompet akan dikembalikan seperti semula.`
+      `Hapus transaksi "${tx.description}"?\nSaldo dompet akan dikembalikan seperti semula.`,
     );
     if (!confirmed) return;
 
@@ -167,12 +184,21 @@ export default function Transactions() {
   };
 
   const resetFilters = () => {
-    setFilters({ type: "", categoryId: "", accountId: "", startDate: "", endDate: "", search: "" });
+    setFilters({
+      type: "",
+      categoryId: "",
+      accountId: "",
+      startDate: "",
+      endDate: "",
+      search: "",
+    });
   };
 
   const handleExportCSV = async () => {
     try {
-      const res = await api.get("/export/transactions", { responseType: "blob" });
+      const res = await api.get("/export/transactions", {
+        responseType: "blob",
+      });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = url;
@@ -188,9 +214,20 @@ export default function Transactions() {
   };
 
   const getTypeIcon = (type) => {
-    if (type === "income") return { icon: <ArrowDownLeft className="h-5 w-5" />, bg: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" };
-    if (type === "transfer") return { icon: <ArrowLeftRight className="h-5 w-5" />, bg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" };
-    return { icon: <ArrowUpRight className="h-5 w-5" />, bg: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" };
+    if (type === "income")
+      return {
+        icon: <ArrowDownLeft className="h-5 w-5" />,
+        bg: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+      };
+    if (type === "transfer")
+      return {
+        icon: <ArrowLeftRight className="h-5 w-5" />,
+        bg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+      };
+    return {
+      icon: <ArrowUpRight className="h-5 w-5" />,
+      bg: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+    };
   };
 
   const getTypeColor = (type) => {
@@ -208,7 +245,9 @@ export default function Transactions() {
   return (
     <Layout>
       <div className="mb-8 flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Transaksi Saya</h2>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Transaksi Saya
+        </h2>
         <button
           onClick={handleExportCSV}
           className="flex items-center gap-2 rounded-xl bg-white dark:bg-gray-800 px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -238,11 +277,18 @@ export default function Transactions() {
           className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Tipe</label>
+            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
+              Tipe
+            </label>
             <select
               value={formData.type}
               onChange={(e) =>
-                setFormData({ ...formData, type: e.target.value, categoryId: "", toAccountId: "" })
+                setFormData({
+                  ...formData,
+                  type: e.target.value,
+                  categoryId: "",
+                  toAccountId: "",
+                })
               }
               className={inputClass}
             >
@@ -258,68 +304,92 @@ export default function Transactions() {
             <select
               required
               value={formData.accountId}
-              onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, accountId: e.target.value })
+              }
               className={inputClass}
             >
               <option value="">Pilih Dompet...</option>
               {wallets.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
               ))}
             </select>
           </div>
 
           {isTransfer ? (
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Dompet Tujuan</label>
+              <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
+                Dompet Tujuan
+              </label>
               <select
                 required
                 value={formData.toAccountId}
-                onChange={(e) => setFormData({ ...formData, toAccountId: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, toAccountId: e.target.value })
+                }
                 className={inputClass}
               >
                 <option value="">Pilih Tujuan...</option>
                 {wallets
                   .filter((w) => w.id !== formData.accountId)
                   .map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
                   ))}
               </select>
             </div>
           ) : (
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Kategori</label>
+              <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
+                Kategori
+              </label>
               <select
                 required
                 value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, categoryId: e.target.value })
+                }
                 className={inputClass}
               >
                 <option value="">Pilih Kategori...</option>
                 {filteredCategories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </div>
           )}
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Nominal (Rp)</label>
+            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
+              Nominal (Rp)
+            </label>
             <input
               type="number"
               required
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, amount: e.target.value })
+              }
               className={inputClass}
               placeholder="0"
             />
           </div>
           <div className={isTransfer ? "" : "lg:col-span-2"}>
-            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Keterangan</label>
+            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
+              Keterangan
+            </label>
             <input
               type="text"
               required={!isTransfer}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               className={inputClass}
               placeholder={isTransfer ? "Opsional" : "Misal: Beli makan siang"}
             />
@@ -336,7 +406,11 @@ export default function Transactions() {
                     : "bg-primary-500 hover:bg-primary-600"
               }`}
             >
-              {editingId ? "Simpan Perubahan" : isTransfer ? "Transfer Sekarang" : "Simpan Transaksi"}
+              {editingId
+                ? "Simpan Perubahan"
+                : isTransfer
+                  ? "Transfer Sekarang"
+                  : "Simpan Transaksi"}
             </LoadingButton>
           </div>
         </form>
@@ -345,7 +419,9 @@ export default function Transactions() {
       {/* Filter */}
       <div className="mb-6 rounded-3xl bg-white dark:bg-gray-800 p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">Filter</h3>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+            Filter
+          </h3>
           <button
             onClick={resetFilters}
             className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
@@ -359,7 +435,9 @@ export default function Transactions() {
             <input
               type="text"
               value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
               placeholder="Cari berdasarkan keterangan..."
             />
@@ -376,35 +454,47 @@ export default function Transactions() {
           </select>
           <select
             value={filters.accountId}
-            onChange={(e) => setFilters({ ...filters, accountId: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, accountId: e.target.value })
+            }
             className={filterInputClass}
           >
             <option value="">Semua Dompet</option>
             {wallets.map((w) => (
-              <option key={w.id} value={w.id}>{w.name}</option>
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
             ))}
           </select>
           <select
             value={filters.categoryId}
-            onChange={(e) => setFilters({ ...filters, categoryId: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, categoryId: e.target.value })
+            }
             className={filterInputClass}
           >
             <option value="">Semua Kategori</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
           <input
             type="date"
             value={filters.startDate}
-            onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, startDate: e.target.value })
+            }
             className={filterInputClass}
             placeholder="Dari tanggal"
           />
           <input
             type="date"
             value={filters.endDate}
-            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, endDate: e.target.value })
+            }
             className={filterInputClass}
             placeholder="Sampai tanggal"
           />
@@ -414,8 +504,12 @@ export default function Transactions() {
       {/* Daftar Transaksi */}
       <div className="rounded-3xl bg-white dark:bg-gray-800 p-8 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Riwayat Transaksi</h3>
-          <span className="text-sm text-gray-500 dark:text-gray-400">{pagination.total} transaksi</span>
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+            Riwayat Transaksi
+          </h3>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {pagination.total} transaksi
+          </span>
         </div>
         {initialLoading ? (
           <SkeletonList />
@@ -438,11 +532,15 @@ export default function Transactions() {
                     className="flex flex-col gap-3 rounded-2xl bg-gray-50 dark:bg-gray-700 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${bg}`}>
+                      <div
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${bg}`}
+                      >
                         {icon}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900 dark:text-gray-100">{tx.description}</p>
+                        <p className="font-bold text-gray-900 dark:text-gray-100">
+                          {tx.description}
+                        </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           {tx.account?.name}
                           {tx.category?.name && ` • ${tx.category.name}`}
@@ -452,9 +550,15 @@ export default function Transactions() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 sm:gap-4">
-                      <p className={`text-xl font-bold ${getTypeColor(tx.type)}`}>
-                        {tx.type === "income" ? "+" : tx.type === "transfer" ? "" : "-"} Rp{" "}
-                        {tx.amount.toLocaleString("id-ID")}
+                      <p
+                        className={`text-xl font-bold ${getTypeColor(tx.type)}`}
+                      >
+                        {tx.type === "income"
+                          ? "+"
+                          : tx.type === "transfer"
+                            ? ""
+                            : "-"}{" "}
+                        Rp {tx.amount.toLocaleString("id-ID")}
                       </p>
                       <div className="flex gap-2">
                         {tx.type !== "transfer" && (

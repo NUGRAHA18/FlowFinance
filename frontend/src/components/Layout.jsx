@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 import {
   LayoutDashboard, Wallet, Tag, ArrowLeftRight, Target,
-  PiggyBank, Handshake, CalendarClock, Settings, LogOut,
+  PiggyBank, Handshake, CalendarClock, RefreshCw, Settings, LogOut,
   Bell, Menu, X, Sun, Moon,
 } from "lucide-react";
 
@@ -64,6 +64,7 @@ export default function Layout({ children }) {
     { name: "Tabungan", path: "/saving-goals", icon: PiggyBank },
     { name: "Hutang", path: "/debts", icon: Handshake },
     { name: "Langganan", path: "/subscriptions", icon: CalendarClock },
+    { name: "Berulang", path: "/recurring", icon: RefreshCw },
     { name: "Profil", path: "/profile", icon: Settings },
   ];
 

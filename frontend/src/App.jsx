@@ -16,6 +16,7 @@ const SavingGoals = lazy(() => import("./pages/SavingGoals"));
 const Debts = lazy(() => import("./pages/Debts"));
 const Subscriptions = lazy(() => import("./pages/Subscriptions"));
 const Profile = lazy(() => import("./pages/Profile"));
+const RecurringTransactions = lazy(() => import("./pages/RecurringTransactions"));
 
 function PageLoader() {
   return (
@@ -45,7 +46,8 @@ function App() {
           <Route path="/saving-goals" element={<PrivateRoute><SavingGoals /></PrivateRoute>} />
           <Route path="/debts" element={<PrivateRoute><Debts /></PrivateRoute>} />
           <Route path="/subscriptions" element={<PrivateRoute><Subscriptions /></PrivateRoute>} />
-          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+          <Route path="/recurring" element={<PrivateRoute><RecurringTransactions /></PrivateRoute>} />
+        <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         </Routes>
       </Suspense>
     </BrowserRouter>
