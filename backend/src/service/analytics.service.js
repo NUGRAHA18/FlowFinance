@@ -3,23 +3,34 @@ import prisma from "../config/prisma.js";
 // Fungsi bantuan untuk format YYYY-MM
 const getMonthStr = (date) => date.toISOString().slice(0, 7);
 
-export const getDashboardData = async (userId) => {
-  // 1. Tentukan batas waktu (Tanggal)
+export const getDashboardData = async (userId, filter = "this_month") => {
   const now = new Date();
-  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const endOfLastMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    0,
-    23,
-    59,
-    59,
-    999,
-  );
 
-  // Awal tahun ini untuk chart
+  // Tentukan periode berdasarkan filter
+  let periodStart, periodEnd, compareStart, compareEnd;
+
+  if (filter === "last_month") {
+    periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    periodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    compareStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    compareEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
+  } else if (filter === "this_year") {
+    periodStart = new Date(now.getFullYear(), 0, 1);
+    periodEnd = now;
+    compareStart = new Date(now.getFullYear() - 1, 0, 1);
+    compareEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+  } else {
+    // this_month (default)
+    periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    periodEnd = now;
+    compareStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    compareEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  }
+
   const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const budgetMonth = filter === "last_month"
+    ? getMonthStr(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+    : getMonthStr(now);
 
   // 2. Tarik Semua Data Esensial Paralel (Lebih Cepat & Efisien)
   const [
@@ -34,7 +45,7 @@ export const getDashboardData = async (userId) => {
     prisma.account.findMany({ where: { userId } }),
     prisma.savingGoal.findMany({ where: { userId } }),
     prisma.budget.findMany({
-      where: { userId, month: getMonthStr(now) },
+      where: { userId, month: budgetMonth },
       include: { category: true },
     }),
     prisma.transaction.findMany({
@@ -44,11 +55,11 @@ export const getDashboardData = async (userId) => {
       include: { category: true, account: true },
     }),
     prisma.transaction.findMany({
-      where: { userId, date: { gte: startOfThisMonth } },
+      where: { userId, date: { gte: periodStart, lte: periodEnd } },
       include: { category: true },
     }),
     prisma.transaction.findMany({
-      where: { userId, date: { gte: startOfLastMonth, lte: endOfLastMonth } },
+      where: { userId, date: { gte: compareStart, lte: compareEnd } },
     }),
     prisma.transaction.findMany({
       where: { userId, date: { gte: startOfYear } },

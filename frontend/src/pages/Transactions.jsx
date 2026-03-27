@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
 import { toast } from "../components/Toast";
+import LoadingButton from "../components/LoadingButton";
+import EmptyState from "../components/EmptyState";
+import { SkeletonList } from "../components/Skeleton";
+import useDebounce from "../hooks/useDebounce";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ArrowLeftRight,
+  Download,
+  Search,
+} from "lucide-react";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -9,6 +20,8 @@ export default function Transactions() {
   const [wallets, setWallets] = useState([]);
   const [categories, setCategories] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -17,7 +30,10 @@ export default function Transactions() {
     accountId: "",
     startDate: "",
     endDate: "",
+    search: "",
   });
+
+  const debouncedFilters = useDebounce(filters, 400);
 
   const emptyForm = {
     type: "expense",
@@ -33,17 +49,20 @@ export default function Transactions() {
   const fetchTransactions = async (page = 1) => {
     try {
       const params = new URLSearchParams({ page, limit: 10 });
-      if (filters.type) params.append("type", filters.type);
-      if (filters.categoryId) params.append("categoryId", filters.categoryId);
-      if (filters.accountId) params.append("accountId", filters.accountId);
-      if (filters.startDate) params.append("startDate", filters.startDate);
-      if (filters.endDate) params.append("endDate", filters.endDate);
+      if (debouncedFilters.type) params.append("type", debouncedFilters.type);
+      if (debouncedFilters.categoryId) params.append("categoryId", debouncedFilters.categoryId);
+      if (debouncedFilters.accountId) params.append("accountId", debouncedFilters.accountId);
+      if (debouncedFilters.startDate) params.append("startDate", debouncedFilters.startDate);
+      if (debouncedFilters.endDate) params.append("endDate", debouncedFilters.endDate);
+      if (debouncedFilters.search) params.append("search", debouncedFilters.search);
 
       const res = await api.get(`/transactions?${params}`);
       setTransactions(res.data.data);
       setPagination(res.data.pagination);
     } catch (err) {
       console.error("Gagal memuat transaksi", err);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -69,7 +88,7 @@ export default function Transactions() {
 
   useEffect(() => {
     fetchTransactions(1);
-  }, [filters]);
+  }, [debouncedFilters]);
 
   const isTransfer = formData.type === "transfer";
   const filteredCategories = categories.filter((c) => c.type === formData.type);
@@ -78,6 +97,7 @@ export default function Transactions() {
     e.preventDefault();
     if (!isTransfer && !formData.categoryId) return toast.error("Pilih kategori terlebih dahulu!");
     if (isTransfer && !formData.toAccountId) return toast.error("Pilih dompet tujuan!");
+    setLoading(true);
     try {
       const payload = {
         accountId: formData.accountId,
@@ -107,6 +127,8 @@ export default function Transactions() {
     } catch (err) {
       const msg = err.response?.data?.details?.join(", ") || err.response?.data?.error;
       toast.error(msg || (editingId ? "Gagal mengubah transaksi" : "Gagal mencatat transaksi"));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,7 +167,7 @@ export default function Transactions() {
   };
 
   const resetFilters = () => {
-    setFilters({ type: "", categoryId: "", accountId: "", startDate: "", endDate: "" });
+    setFilters({ type: "", categoryId: "", accountId: "", startDate: "", endDate: "", search: "" });
   };
 
   const handleExportCSV = async () => {
@@ -166,44 +188,46 @@ export default function Transactions() {
   };
 
   const getTypeIcon = (type) => {
-    if (type === "income") return { icon: "↓", bg: "bg-green-100 text-green-600" };
-    if (type === "transfer") return { icon: "⇄", bg: "bg-blue-100 text-blue-600" };
-    return { icon: "↑", bg: "bg-red-100 text-red-600" };
+    if (type === "income") return { icon: <ArrowDownLeft className="h-5 w-5" />, bg: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" };
+    if (type === "transfer") return { icon: <ArrowLeftRight className="h-5 w-5" />, bg: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" };
+    return { icon: <ArrowUpRight className="h-5 w-5" />, bg: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" };
   };
 
   const getTypeColor = (type) => {
-    if (type === "income") return "text-[#628263]";
-    if (type === "transfer") return "text-blue-600";
-    return "text-gray-900";
+    if (type === "income") return "text-primary-500 dark:text-primary-400";
+    if (type === "transfer") return "text-blue-600 dark:text-blue-400";
+    return "text-gray-900 dark:text-gray-100";
   };
 
-  const inputClass = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-[#628263] focus:bg-white focus:ring-2 focus:ring-[#628263]/20";
+  const inputClass =
+    "w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 outline-none transition focus:border-primary-500 focus:bg-white dark:focus:bg-gray-600 focus:ring-2 focus:ring-primary-500/20";
+
+  const filterInputClass =
+    "rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500";
 
   return (
     <Layout>
       <div className="mb-8 flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-gray-900">Transaksi Saya</h2>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Transaksi Saya</h2>
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+          className="flex items-center gap-2 rounded-xl bg-white dark:bg-gray-800 px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-gray-700"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+          <Download className="h-4 w-4" />
           Export CSV
         </button>
       </div>
 
       {/* Form Tambah/Edit Transaksi */}
-      <div className="mb-10 rounded-3xl bg-white p-8 shadow-sm">
+      <div className="mb-10 rounded-3xl bg-white dark:bg-gray-800 p-8 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-800">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
             {editingId ? "Edit Transaksi" : "Catat Transaksi Baru"}
           </h3>
           {editingId && (
             <button
               onClick={handleCancelEdit}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               Batal Edit
             </button>
@@ -214,7 +238,7 @@ export default function Transactions() {
           className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">Tipe</label>
+            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Tipe</label>
             <select
               value={formData.type}
               onChange={(e) =>
@@ -228,7 +252,7 @@ export default function Transactions() {
             </select>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
+            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
               {isTransfer ? "Dompet Asal" : "Dompet"}
             </label>
             <select
@@ -246,7 +270,7 @@ export default function Transactions() {
 
           {isTransfer ? (
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-600">Dompet Tujuan</label>
+              <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Dompet Tujuan</label>
               <select
                 required
                 value={formData.toAccountId}
@@ -263,7 +287,7 @@ export default function Transactions() {
             </div>
           ) : (
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-600">Kategori</label>
+              <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Kategori</label>
               <select
                 required
                 value={formData.categoryId}
@@ -279,7 +303,7 @@ export default function Transactions() {
           )}
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">Nominal (Rp)</label>
+            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Nominal (Rp)</label>
             <input
               type="number"
               required
@@ -290,7 +314,7 @@ export default function Transactions() {
             />
           </div>
           <div className={isTransfer ? "" : "lg:col-span-2"}>
-            <label className="mb-2 block text-sm font-medium text-gray-600">Keterangan</label>
+            <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">Keterangan</label>
             <input
               type="text"
               required={!isTransfer}
@@ -301,38 +325,49 @@ export default function Transactions() {
             />
           </div>
           <div className="flex items-end lg:col-span-3">
-            <button
+            <LoadingButton
               type="submit"
+              loading={loading}
               className={`w-full rounded-xl py-4 font-bold text-white transition shadow-md ${
                 editingId
                   ? "bg-amber-500 hover:bg-amber-600"
                   : isTransfer
                     ? "bg-blue-500 hover:bg-blue-600"
-                    : "bg-[#628263] hover:bg-[#4d684e]"
+                    : "bg-primary-500 hover:bg-primary-600"
               }`}
             >
               {editingId ? "Simpan Perubahan" : isTransfer ? "Transfer Sekarang" : "Simpan Transaksi"}
-            </button>
+            </LoadingButton>
           </div>
         </form>
       </div>
 
       {/* Filter */}
-      <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm">
+      <div className="mb-6 rounded-3xl bg-white dark:bg-gray-800 p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-800">Filter</h3>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">Filter</h3>
           <button
             onClick={resetFilters}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700"
+            className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           >
             Reset Filter
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <div className="relative col-span-2 md:col-span-3 lg:col-span-6 mb-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-primary-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              placeholder="Cari berdasarkan keterangan..."
+            />
+          </div>
           <select
             value={filters.type}
             onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+            className={filterInputClass}
           >
             <option value="">Semua Tipe</option>
             <option value="income">Pemasukan</option>
@@ -342,7 +377,7 @@ export default function Transactions() {
           <select
             value={filters.accountId}
             onChange={(e) => setFilters({ ...filters, accountId: e.target.value })}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+            className={filterInputClass}
           >
             <option value="">Semua Dompet</option>
             {wallets.map((w) => (
@@ -352,7 +387,7 @@ export default function Transactions() {
           <select
             value={filters.categoryId}
             onChange={(e) => setFilters({ ...filters, categoryId: e.target.value })}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+            className={filterInputClass}
           >
             <option value="">Semua Kategori</option>
             {categories.map((c) => (
@@ -363,27 +398,35 @@ export default function Transactions() {
             type="date"
             value={filters.startDate}
             onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+            className={filterInputClass}
             placeholder="Dari tanggal"
           />
           <input
             type="date"
             value={filters.endDate}
             onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#628263]"
+            className={filterInputClass}
             placeholder="Sampai tanggal"
           />
         </div>
       </div>
 
       {/* Daftar Transaksi */}
-      <div className="rounded-3xl bg-white p-8 shadow-sm">
+      <div className="rounded-3xl bg-white dark:bg-gray-800 p-8 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-800">Riwayat Transaksi</h3>
-          <span className="text-sm text-gray-500">{pagination.total} transaksi</span>
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Riwayat Transaksi</h3>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{pagination.total} transaksi</span>
         </div>
-        {transactions.length === 0 ? (
-          <p className="text-gray-500">Belum ada transaksi.</p>
+        {initialLoading ? (
+          <SkeletonList />
+        ) : transactions.length === 0 ? (
+          <EmptyState
+            icon={ArrowLeftRight}
+            title="Belum ada transaksi"
+            description="Mulai catat pemasukan dan pengeluaranmu untuk memantau keuangan."
+            actionLabel="Catat Transaksi Pertamamu"
+            onAction={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          />
         ) : (
           <>
             <ul className="flex flex-col gap-4">
@@ -392,15 +435,15 @@ export default function Transactions() {
                 return (
                   <li
                     key={tx.id}
-                    className="flex flex-col gap-3 rounded-2xl bg-gray-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
+                    className="flex flex-col gap-3 rounded-2xl bg-gray-50 dark:bg-gray-700 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
                   >
                     <div className="flex items-center gap-4">
                       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${bg}`}>
                         {icon}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900">{tx.description}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="font-bold text-gray-900 dark:text-gray-100">{tx.description}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {tx.account?.name}
                           {tx.category?.name && ` • ${tx.category.name}`}
                           {" • "}
@@ -417,14 +460,14 @@ export default function Transactions() {
                         {tx.type !== "transfer" && (
                           <button
                             onClick={() => handleEdit(tx)}
-                            className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-100"
+                            className="rounded-lg bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-sm font-medium text-amber-600 dark:text-amber-400 transition hover:bg-amber-100 dark:hover:bg-amber-900/50"
                           >
                             Edit
                           </button>
                         )}
                         <button
                           onClick={() => handleDelete(tx)}
-                          className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100"
+                          className="rounded-lg bg-red-50 dark:bg-red-900/30 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 transition hover:bg-red-100 dark:hover:bg-red-900/50"
                         >
                           Hapus
                         </button>
@@ -441,17 +484,17 @@ export default function Transactions() {
                 <button
                   disabled={pagination.page <= 1}
                   onClick={() => fetchTransactions(pagination.page - 1)}
-                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 transition hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Sebelumnya
                 </button>
-                <span className="px-4 py-2 text-sm text-gray-600">
+                <span className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
                   {pagination.page} / {pagination.totalPages}
                 </span>
                 <button
                   disabled={pagination.page >= pagination.totalPages}
                   onClick={() => fetchTransactions(pagination.page + 1)}
-                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 transition hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Berikutnya
                 </button>

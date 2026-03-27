@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Layout from "../components/Layout";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { SkeletonDashboard } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import {
+  TrendingUp,
+  TrendingDown,
+  ArrowUpDown,
+  Wallet,
+  DollarSign,
+  AlertTriangle,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -16,36 +27,35 @@ import {
 } from "recharts";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState("this_month"); // Filter Waktu (Poin 4)
+  const [timeFilter, setTimeFilter] = useState("this_month");
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Jika backend sudah support query timeFilter, bisa ditambahkan: ?filter=${timeFilter}
-        const res = await api.get("/analytics/dashboard");
+        const res = await api.get(`/analytics/dashboard?filter=${timeFilter}`);
         setData(res.data);
       } catch (err) {
-        if (err.response?.status === 401) {
-          localStorage.removeItem("token");
-          window.location.href = "/login";
-        }
+        // 401 handling is done by global axios interceptor
+        console.error("Failed to fetch dashboard data:", err);
       } finally {
         setLoading(false);
       }
     };
+    setLoading(true);
     fetchDashboardData();
   }, [timeFilter]);
 
   if (loading)
     return (
-      <div className="flex h-full items-center justify-center text-xl text-gray-500">
-        Memuat dasbor...
-      </div>
+      <Layout>
+        <SkeletonDashboard />
+      </Layout>
     );
 
-  // Fungsi hitung persentase (Poin 6.1)
+  // Fungsi hitung persentase
   const calcTrend = (curr, prev) => {
     if (!prev || prev === 0) return curr > 0 ? "+100%" : "0%";
     const percent = Math.round(((curr - prev) / prev) * 100);
@@ -69,18 +79,20 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      {/* Header & Filter Waktu (Poin 4) */}
+      {/* Header & Filter Waktu */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">
-            Ringkasan Keuangan
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            {user?.name ? `Halo, ${user.name}!` : "Ringkasan Keuangan"}
           </h2>
-          <p className="text-gray-500">Pantau arus kas dan targetmu di sini.</p>
+          <p className="text-gray-500 dark:text-gray-400">
+            Pantau arus kas dan targetmu di sini.
+          </p>
         </div>
         <select
           value={timeFilter}
           onChange={(e) => setTimeFilter(e.target.value)}
-          className="rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm outline-none transition focus:border-[#628263]"
+          className="rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm outline-none transition focus:border-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
         >
           <option value="this_month">Bulan Ini</option>
           <option value="last_month">Bulan Lalu</option>
@@ -90,7 +102,7 @@ export default function Dashboard() {
 
       {/* Baris 1: Kartu Utama (Balance, Income, Expense, Net) */}
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Total Balance (Poin 5) */}
+        {/* Total Balance */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#A04530] to-[#1E1E1E] p-6 text-white shadow-lg">
           <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500 opacity-20 blur-2xl"></div>
           <p className="mb-2 text-sm opacity-80">Total Saldo</p>
@@ -104,55 +116,63 @@ export default function Dashboard() {
         </div>
 
         {/* Income */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-gray-500">Pemasukan</p>
-          <h2 className="mt-2 text-2xl font-bold text-[#628263]">
+        <div className="rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800">
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+            Pemasukan
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-primary-500">
             Rp {data?.thisMonth?.income?.toLocaleString("id-ID")}
           </h2>
           <p
             className={`mt-4 text-sm font-bold ${incomeIsUp ? "text-green-500" : "text-red-500"}`}
           >
             {incomeTrend}{" "}
-            <span className="text-xs font-normal text-gray-400">
+            <span className="text-xs font-normal text-gray-400 dark:text-gray-500">
               vs bulan lalu
             </span>
           </p>
         </div>
 
         {/* Expense */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-gray-500">Pengeluaran</p>
-          <h2 className="mt-2 text-2xl font-bold text-gray-900">
+        <div className="rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800">
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+            Pengeluaran
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
             Rp {data?.thisMonth?.expense?.toLocaleString("id-ID")}
           </h2>
           <p
             className={`mt-4 text-sm font-bold ${expenseIsUp ? "text-red-500" : "text-green-500"}`}
           >
             {expenseTrend}{" "}
-            <span className="text-xs font-normal text-gray-400">
+            <span className="text-xs font-normal text-gray-400 dark:text-gray-500">
               vs bulan lalu
             </span>
           </p>
         </div>
 
-        {/* Net Cash Flow (Poin 6.2) */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm border-l-4 border-[#628263]">
-          <p className="text-sm font-semibold text-gray-500">Net Cash Flow</p>
+        {/* Net Cash Flow */}
+        <div className="rounded-3xl bg-white p-6 shadow-sm border-l-4 border-primary-500 dark:bg-gray-800">
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+            Net Cash Flow
+          </p>
           <h2
-            className={`mt-2 text-2xl font-bold ${data?.thisMonth?.netCashFlow >= 0 ? "text-[#628263]" : "text-red-500"}`}
+            className={`mt-2 text-2xl font-bold ${data?.thisMonth?.netCashFlow >= 0 ? "text-primary-500" : "text-red-500"}`}
           >
             {data?.thisMonth?.netCashFlow > 0 ? "+" : ""} Rp{" "}
             {data?.thisMonth?.netCashFlow?.toLocaleString("id-ID")}
           </h2>
-          <p className="mt-4 text-xs text-gray-400">Income dikurangi Expense</p>
+          <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
+            Income dikurangi Expense
+          </p>
         </div>
       </div>
 
       {/* Baris 2: Charts & Progress */}
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Income vs Expense Bar Chart (Poin 9) */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2">
-          <h3 className="mb-6 text-lg font-bold text-gray-800">
+        {/* Income vs Expense Bar Chart */}
+        <div className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2 dark:bg-gray-800">
+          <h3 className="mb-6 text-lg font-bold text-gray-800 dark:text-gray-200">
             Tren Arus Kas (Tahun Ini)
           </h3>
           <div className="h-72 w-full">
@@ -199,9 +219,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Expense by Category Pie Chart (Poin 9) */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h3 className="mb-2 text-lg font-bold text-gray-800">
+        {/* Expense by Category Pie Chart */}
+        <div className="rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800">
+          <h3 className="mb-2 text-lg font-bold text-gray-800 dark:text-gray-200">
             Pengeluaran by Kategori
           </h3>
           {data?.expenseByCategory?.length > 0 ? (
@@ -242,9 +262,11 @@ export default function Dashboard() {
                         className="h-3 w-3 rounded-full"
                         style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                       ></span>
-                      <span className="text-gray-600">{cat.category}</span>
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {cat.category}
+                      </span>
                     </div>
-                    <span className="font-bold text-gray-800">
+                    <span className="font-bold text-gray-800 dark:text-gray-200">
                       {cat.percentage}%
                     </span>
                   </li>
@@ -252,50 +274,61 @@ export default function Dashboard() {
               </ul>
             </>
           ) : (
-            <p className="mt-10 text-center text-sm text-gray-500">
-              Belum ada pengeluaran bulan ini.
-            </p>
+            <EmptyState
+              icon={DollarSign}
+              title="Belum ada pengeluaran"
+              description="Belum ada pengeluaran bulan ini."
+            />
           )}
         </div>
       </div>
 
       {/* Baris 3: Transaksi & Progress Bars */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Recent Transactions (Poin 7) */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2">
+        {/* Recent Transactions */}
+        <div className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2 dark:bg-gray-800">
           <div className="mb-6 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-gray-800">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
               Transaksi Terakhir
             </h3>
             <Link
               to="/transactions"
-              className="text-sm font-bold text-[#628263] hover:underline"
+              className="text-sm font-bold text-primary-500 hover:underline"
             >
               Lihat Semua
             </Link>
           </div>
 
           {data?.recentTransactions?.length === 0 ? (
-            <p className="text-sm text-gray-500">Belum ada transaksi.</p>
+            <EmptyState
+              icon={ArrowUpDown}
+              title="Belum ada transaksi"
+              description="Mulai catat transaksi pertamamu."
+              actionLabel="Catat Transaksi"
+              actionLink="/transactions"
+            />
           ) : (
             <ul className="flex flex-col gap-4">
               {data?.recentTransactions?.map((tx) => (
                 <li
                   key={tx.id}
-                  className="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0"
+                  className="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0 last:pb-0 dark:border-gray-700"
                 >
                   <div className="flex items-center gap-4">
                     <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl ${tx.type === "income" ? "bg-[#f0f4f1] text-[#628263]" : "bg-red-50 text-red-500"}`}
+                      className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tx.type === "income" ? "bg-primary-50 text-primary-500 dark:bg-primary-500/10" : "bg-red-50 text-red-500 dark:bg-red-500/10"}`}
                     >
-                      {tx.type === "income" ? "💰" : "🍜"}{" "}
-                      {/* Idealnya icon dinamis dari kategori */}
+                      {tx.type === "income" ? (
+                        <TrendingUp className="h-5 w-5" />
+                      ) : (
+                        <TrendingDown className="h-5 w-5" />
+                      )}
                     </div>
                     <div>
-                      <p className="font-bold text-gray-900">
+                      <p className="font-bold text-gray-900 dark:text-gray-100">
                         {tx.category?.name}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         {tx.description || tx.category?.name} <br />
                         <span className="text-xs">
                           {tx.account?.name} •{" "}
@@ -308,7 +341,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <p
-                    className={`text-lg font-bold ${tx.type === "income" ? "text-[#628263]" : "text-red-500"}`}
+                    className={`text-lg font-bold ${tx.type === "income" ? "text-primary-500" : "text-red-500"}`}
                   >
                     {tx.type === "income" ? "+" : "-"} Rp{" "}
                     {tx.amount.toLocaleString("id-ID")}
@@ -321,9 +354,9 @@ export default function Dashboard() {
 
         {/* Kolom Kanan: Budget, Savings, Aksi Cepat */}
         <div className="flex flex-col gap-6">
-          {/* Budget Progress (Poin 10) */}
-          <div className="rounded-3xl bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold text-gray-800">
+          {/* Budget Progress */}
+          <div className="rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <h3 className="mb-4 text-lg font-bold text-gray-800 dark:text-gray-200">
               Budget Progress
             </h3>
             {data?.budgets?.length > 0 ? (
@@ -335,26 +368,26 @@ export default function Dashboard() {
                 const isWarning = percent >= 80;
                 return (
                   <div key={b.id} className="mb-4 last:mb-0">
-                    <div className="flex justify-between text-sm font-medium text-gray-800">
+                    <div className="flex justify-between text-sm font-medium text-gray-800 dark:text-gray-200">
                       <span>{b.category?.name}</span>
                       <span>
                         Rp {b.spentAmount?.toLocaleString("id-ID")} / Rp{" "}
                         {b.amount?.toLocaleString("id-ID")}
                       </span>
                     </div>
-                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                       <div
-                        className={`h-full transition-all duration-500 ${isWarning ? "bg-red-500" : "bg-[#628263]"}`}
+                        className={`h-full transition-all duration-500 ${isWarning ? "bg-red-500" : "bg-primary-500"}`}
                         style={{ width: `${percent}%` }}
                       ></div>
                     </div>
                     <div className="mt-1 flex justify-between text-xs">
-                      <span className="font-bold text-gray-600">
+                      <span className="font-bold text-gray-600 dark:text-gray-400">
                         {percent}%
                       </span>
                       {isWarning && (
-                        <span className="font-semibold text-red-500">
-                          ⚠ Hampir habis
+                        <span className="flex items-center gap-1 font-semibold text-red-500">
+                          <AlertTriangle className="h-3 w-3" /> Hampir habis
                         </span>
                       )}
                     </div>
@@ -362,15 +395,19 @@ export default function Dashboard() {
                 );
               })
             ) : (
-              <p className="text-sm text-gray-500">
-                Belum ada anggaran bulan ini.
-              </p>
+              <EmptyState
+                icon={Wallet}
+                title="Belum ada anggaran"
+                description="Belum ada anggaran bulan ini."
+                actionLabel="Buat Anggaran"
+                actionLink="/budgets"
+              />
             )}
           </div>
 
-          {/* Savings Progress (Poin 11) */}
-          <div className="rounded-3xl bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold text-gray-800">
+          {/* Savings Progress */}
+          <div className="rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <h3 className="mb-4 text-lg font-bold text-gray-800 dark:text-gray-200">
               Savings Progress
             </h3>
             {data?.savings?.length > 0 ? (
@@ -381,45 +418,51 @@ export default function Dashboard() {
                 ).toFixed(0);
                 return (
                   <div key={s.id} className="mb-4 last:mb-0">
-                    <div className="flex justify-between text-sm font-medium text-gray-800">
+                    <div className="flex justify-between text-sm font-medium text-gray-800 dark:text-gray-200">
                       <span>{s.name}</span>
                       <span>
                         Rp {s.savedAmount?.toLocaleString("id-ID")} / Rp{" "}
                         {s.targetAmount?.toLocaleString("id-ID")}
                       </span>
                     </div>
-                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                       <div
                         className="h-full bg-blue-500 transition-all duration-500"
                         style={{ width: `${percent}%` }}
                       ></div>
                     </div>
-                    <span className="mt-1 block text-xs font-bold text-gray-600">
+                    <span className="mt-1 block text-xs font-bold text-gray-600 dark:text-gray-400">
                       {percent}%
                     </span>
                   </div>
                 );
               })
             ) : (
-              <p className="text-sm text-gray-500">
-                Belum ada target tabungan.
-              </p>
+              <EmptyState
+                icon={DollarSign}
+                title="Belum ada target tabungan"
+                description="Mulai menabung dengan membuat target pertamamu."
+                actionLabel="Tambah Tabungan"
+                actionLink="/saving-goals"
+              />
             )}
           </div>
 
-          {/* Aksi Cepat (Poin 8) */}
-          <div className="rounded-3xl bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold text-gray-800">Aksi Cepat</h3>
+          {/* Aksi Cepat */}
+          <div className="rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <h3 className="mb-4 text-lg font-bold text-gray-800 dark:text-gray-200">
+              Aksi Cepat
+            </h3>
             <div className="flex flex-col gap-3">
               <Link
                 to="/transactions"
-                className="w-full rounded-xl bg-[#628263] py-3 text-center font-bold text-white transition hover:bg-[#4d684e]"
+                className="w-full rounded-xl bg-primary-500 py-3 text-center font-bold text-white transition hover:bg-primary-600"
               >
                 Catat Transaksi
               </Link>
               <Link
                 to="/saving-goals"
-                className="w-full rounded-xl border-2 border-[#628263] py-3 text-center font-bold text-[#628263] transition hover:bg-[#f0f4f1]"
+                className="w-full rounded-xl border-2 border-primary-500 py-3 text-center font-bold text-primary-500 transition hover:bg-primary-50"
               >
                 Tambah Tabungan
               </Link>

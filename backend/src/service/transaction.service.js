@@ -56,13 +56,14 @@ export const createTransaction = async ({
 };
 
 export const getUserTransactions = async (userId, filters = {}) => {
-  const { page = 1, limit = 10, type, categoryId, accountId, startDate, endDate } = filters;
+  const { page = 1, limit = 10, type, categoryId, accountId, startDate, endDate, search } = filters;
 
   const where = { userId };
 
   if (type) where.type = type;
   if (categoryId) where.categoryId = categoryId;
   if (accountId) where.accountId = accountId;
+  if (search) where.description = { contains: search, mode: "insensitive" };
   if (startDate || endDate) {
     where.date = {};
     if (startDate) where.date.gte = new Date(startDate);
