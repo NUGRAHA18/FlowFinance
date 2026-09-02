@@ -25,7 +25,7 @@ REST API di `/api/*` dan skema database yang dikelola migrasi Prisma.
 
 | Path | Service | Deploy ke | Konfigurasi |
 |---|---|---|---|
-| `backend/` | REST API | Render | `backend/render.yaml` |
+| `backend/` | REST API | Render | `render.yaml` (di root) |
 | `frontend/` | SPA | Vercel | `frontend/vercel.json` |
 | `backend/prisma/` | Skema & migrasi DB | Supabase | `schema.prisma` |
 
@@ -129,7 +129,8 @@ transaction pooler memutus transaksi panjang di tengah jalan.
 
 ## Deploy backend → Render
 
-Render dashboard → **New → Blueprint** → pilih repo ini. Render membaca `backend/render.yaml`.
+Render dashboard → **New → Blueprint** → pilih repo ini. Render membaca `render.yaml`
+yang ada di root repo (Blueprint tidak bisa membacanya dari subfolder).
 
 Atau manual (**New → Web Service**):
 

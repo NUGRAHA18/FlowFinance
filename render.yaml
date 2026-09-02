@@ -1,4 +1,5 @@
-# Render Blueprint — deploy dari repo ini dengan Root Directory = "backend".
+# Render Blueprint — WAJIB berada di root repo; Render tidak membaca file ini
+# dari subfolder. Field `rootDir` di bawah yang mengarahkan ke service backend.
 # Dashboard Render → New → Blueprint → pilih repo → Render membaca file ini.
 services:
   - type: web
