@@ -1,9 +1,12 @@
+// Prisma 7: URL koneksi tidak lagi ditulis di sini.
+// - Runtime  → PrismaClient({ adapter }) di src/config/prisma.js  (DATABASE_URL, pooler :6543)
+// - Migrasi  → prisma.config.js                                   (DIRECT_URL, direct :5432)
 datasource db {
   provider = "postgresql"
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
