@@ -17,6 +17,9 @@ const Debts = lazy(() => import("./pages/Debts"));
 const Subscriptions = lazy(() => import("./pages/Subscriptions"));
 const Profile = lazy(() => import("./pages/Profile"));
 const RecurringTransactions = lazy(() => import("./pages/RecurringTransactions"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 function PageLoader() {
   return (
@@ -48,6 +51,9 @@ function App() {
           <Route path="/subscriptions" element={<PrivateRoute><Subscriptions /></PrivateRoute>} />
           <Route path="/recurring" element={<PrivateRoute><RecurringTransactions /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
