@@ -237,8 +237,8 @@ export default function LandingPage() {
           <div>
             <h3 className="mb-4 font-bold text-gray-900">Informasi</h3>
             <ul className="flex flex-col gap-3 text-sm">
-              <li><span className="text-gray-400">Privacy Policy</span></li>
-              <li><span className="text-gray-400">Terms of Service</span></li>
+              <li><Link to="/privacy-policy" className="transition hover:text-primary-500">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" className="transition hover:text-primary-500">Terms of Service</Link></li>
             </ul>
           </div>
         </div>
